@@ -1,50 +1,31 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+import streamlit as st
 from yt_dlp import YoutubeDL
 
-app = FastAPI()
+st.title("YouTube Downloader")
 
-# ملفات الواجهة
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# حقل لصق رابط الفيديو
+url = st.text_input("Paste YouTube URL:")
 
-def get_direct_link(url, format_type):
-    url = url.strip()
+# اختيار صيغة الفيديو
+format_choice = st.selectbox("Choose format:", ["MP4", "MP3"])
+
+if st.button("Generate Direct Link"):
     if not url:
-        return None
-
-    if format_type == "mp3":
-        ydl_opts = {'format': 'bestaudio/best', 'quiet': True, 'no_warnings': True, 'skip_download': True}
+        st.warning("Please paste a valid YouTube URL")
     else:
-        ydl_opts = {'format': 'best[ext=mp4]/best', 'quiet': True, 'no_warnings': True, 'skip_download': True}
+        try:
+            ydl_opts = {}
+            if format_choice == "MP3":
+                # إعدادات تنزيل صوت فقط
+                ydl_opts = {
+                    'format': 'bestaudio',
+                    'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}]
+                }
 
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        if format_type == "mp4":
-            if 'url' in info: return info['url']
-            elif 'formats' in info:
-                for f in reversed(info['formats']):
-                    if f.get('ext') == 'mp4' and f.get('url'):
-                        return f['url']
-        else:
-            if 'url' in info: return info['url']
-            elif 'formats' in info:
-                for f in reversed(info['formats']):
-                    if f.get('acodec') != 'none' and f.get('url'):
-                        return f['url']
-    return None
+            with YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(url, download=False)
+                st.success("Direct link generated!")
+                st.write(info_dict['url'])
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "link": ""})
-
-@app.post("/generate", response_class=HTMLResponse)
-async def generate(request: Request, url: str = Form(...), format_type: str = Form(...)):
-    link = None
-    try:
-        link = get_direct_link(url, format_type)
-    except Exception as e:
-        link = f"Error: {str(e)}"
-    return templates.TemplateResponse("index.html", {"request": request, "link": link})
+        except Exception as e:
+            st.error(f"Error: {e}")
