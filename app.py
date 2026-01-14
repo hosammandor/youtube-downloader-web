@@ -9,11 +9,17 @@ if not os.path.exists("downloads"):
 st.set_page_config(page_title="YouTube Downloader Pro", page_icon="📺", layout="centered")
 st.title("📺 YouTube Downloader Pro")
 
-# 1. إدخال رابط اليوتيوب
+# إدخال رابط اليوتيوب
 url = st.text_input("Paste YouTube URL here:")
 
-# 2. اختيار الصيغة
+# اختيار الصيغة
 format_choice = st.selectbox("Select Format:", ["Video (MP4)", "Audio (MP3)"])
+
+# اختيار جودة الفيديو لو الفيديو
+if format_choice == "Video (MP4)":
+    quality_choice = st.selectbox("Select Video Quality:", ["High", "Medium", "Low"])
+else:
+    quality_choice = None
 
 # زر البدء
 if st.button("Download"):
@@ -22,7 +28,8 @@ if st.button("Download"):
     else:
         status_text = st.empty()  # مكان لعرض حالة التحميل
         progress_bar = st.progress(0)  # شريط تقدم
-        
+
+        # دالة شريط التقدم
         def progress_hook(d):
             if d['status'] == 'downloading':
                 total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
@@ -35,7 +42,6 @@ if st.button("Download"):
                 status_text.success("✅ Download finished!")
 
         try:
-            # إعدادات yt-dlp
             output_path = "downloads/%(title)s.%(ext)s"
             ydl_opts = {
                 'outtmpl': output_path,
@@ -53,9 +59,14 @@ if st.button("Download"):
                     }],
                 })
             else:  # Video MP4
-                ydl_opts.update({
-                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-                })
+                if quality_choice == "High":
+                    video_format = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+                elif quality_choice == "Medium":
+                    video_format = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]'
+                else:  # Low
+                    video_format = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]'
+
+                ydl_opts.update({'format': video_format})
 
             # التحميل
             with YoutubeDL(ydl_opts) as ydl:
@@ -68,7 +79,7 @@ if st.button("Download"):
                     base, _ = os.path.splitext(file_path)
                     file_path = base + ".mp3"
 
-            # زر تحميل للمستخدم
+            # زر تحميل
             if os.path.exists(file_path):
                 with open(file_path, "rb") as file:
                     st.download_button(
