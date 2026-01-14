@@ -1,4 +1,2 @@
-fastapi
-uvicorn
-jinja2
+streamlit
 yt-dlp
